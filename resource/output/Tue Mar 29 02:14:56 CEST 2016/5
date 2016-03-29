@@ -1,0 +1,4 @@
+Previous thread: starts waiting
+Previous thread: connected to the previous node: 4
+ExternalThread: Receive request: "setNext"
+	**** Fail ****
