@@ -1,10 +1,8 @@
 package p2p;
 
-import java.lang.reflect.Constructor;
-import java.net.ServerSocket;
-import java.net.Socket;
 import communication.CommunicationChanel;
 import communication.Logger;
+
 
 
 
@@ -16,28 +14,31 @@ public class ThreadExternal implements Runnable
 // ---------------------------------
 // Attributes
 // ---------------------------------
-	public static final int		initialExternalPort			= 3333;
+	public static final int		initialExternalPort	= 3333;
+	public static final String	chanelName_input	= "ThreadExternalInput_";
+	public static final String	chanelName_output	= "ThreadExternalOutput_";
 
-
-	private int				externalNodePort;
-	private Node			node;
-	private Logger			logger;
-	private Constructor<?>	communicationChanelConstructor;
+	private int		externalNodePort;
+	private Node	node;
+	private int		nodeId;
+	private Logger	logger;
+	private String	communicationChanelType;
 
 // -----------------------------------
 // Builder
 // -----------------------------------
-	public static void initThreadExternal(Node node, int nodeId, Logger logger, Constructor<?> communicationChanelConstructor)
+	public static void initThreadExternal(Node node, int nodeId, Logger logger, String communicationChanelType)
 	{
-		new ThreadExternal(node, nodeId, logger, communicationChanelConstructor);
+		new ThreadExternal(node, nodeId, logger, communicationChanelType);
 	}
 
-	private ThreadExternal(Node node, int nodeId, Logger logger, Constructor<?> communicationChanelConstructor)
+	private ThreadExternal(Node node, int nodeId, Logger logger, String communicationChanelType)
 	{
-		this.node							= node;
-		this.externalNodePort				= getPort(nodeId);
-		this.logger							= logger;
-		this.communicationChanelConstructor	= communicationChanelConstructor;
+		this.node						= node;
+		this.nodeId						= nodeId;
+		this.externalNodePort			= getPort(nodeId);
+		this.logger						= logger;
+		this.communicationChanelType	= communicationChanelType;
 
 		Thread t = new Thread(this);
 		t.start();
@@ -49,17 +50,13 @@ public class ThreadExternal implements Runnable
 	@Override
 	public void run()
 	{
-		ServerSocket serverSocket = null;
 		CommunicationChanel chanel= null;
 	
 		while(true)
 		{
-			try 
+			try
 			{
-				serverSocket	= new ServerSocket(externalNodePort);
-				Socket socket	= serverSocket.accept();				// Accept a connection from an external agent
-				chanel			= (CommunicationChanel) communicationChanelConstructor.newInstance(socket, true, true);
-				serverSocket.close();
+				chanel = CommunicationChanel.instantiate(this.communicationChanelType, null, -1, externalNodePort, true, true, getOutputChanelName(nodeId), getInputChanelName(nodeId));
 
 				while(true)
 				{
@@ -91,13 +88,6 @@ public class ThreadExternal implements Runnable
 					else if (request.equals(Node.THREAD_EXTERNAL_GET_PREVIOUS))
 					{
 						res = "" + this.node.getPrevious();
-					}
-					else if (request.equals(Node.THREAD_EXTERNAL_JOIN))
-					{
-						int newNodeId = chanel.readInt();
-						String newNodeIP = chanel.readLine();
-						chanel.writeLine(""+true);
-						this.node.join(newNodeId, newNodeIP);
 					}
 					else if (request.equals(Node.THREAD_EXTERNAL_INSERT))
 					{
@@ -136,9 +126,15 @@ public class ThreadExternal implements Runnable
 		}
 	}
 
-// -----------------------------------
-// Request handler
-// -----------------------------------
+	public static String getOutputChanelName(int nodeId)
+	{
+		return ThreadExternal.chanelName_output + nodeId;
+	}
+
+	public static String getInputChanelName(int nodeId)
+	{
+		return ThreadExternal.chanelName_input + nodeId;
+	}
 
 // -----------------------------------
 // Auxiliary

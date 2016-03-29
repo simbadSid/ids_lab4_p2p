@@ -2,15 +2,11 @@ package test;
 
 import java.io.File;
 import java.lang.reflect.Method;
-import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Scanner;
-
 import p2p.Node;
 import p2p.ThreadExternal;
-
 import communication.CommunicationChanel;
-import communication.CommunicationChanel_Socket;
 
 
 
@@ -23,7 +19,7 @@ public class TestClient
 // Attributes
 // -------------------------------------
 	public static String	neighborMatrixFile		= "resource/input/neighborhoodMatrix.txt";
-	public static String	communicationChanelType	= Node.COMMUNICATION_CHANEL_SOCKET;
+	public static String	communicationChanelType	= CommunicationChanel.COMMUNICATION_CHANEL_RABBITMQ;
 	public static Topology	topology;
 
 // -------------------------------------
@@ -90,15 +86,38 @@ nodeIP = "localhost";
 /*			System.out.println("\t- \"" + Node.THREAD_EXTERNAL_HALT + "\"");
 */
 			System.out.println("\t- \"printOverlay\"");
+			System.out.println("\t- \"setLocalNode\"");
 
 			String method = sc.next();
+
+			if ((chanel == null) || (chanel.isClose()))
+				chanel = connectToNode(sc, nodeIP, nodeId);
+
 			if (method.equals("printOverlay"))
 			{
 				printOverlay(topology);
 				continue;
 			}
-			if ((chanel == null) || (chanel.isClose()))
-				chanel = connectToNode(sc, nodeIP, nodeId);
+			if (method.equals("setLocalNode"))
+			{
+				System.out.println("\tPlease enter the index of the node to call ( 0 <= index <= " + topology.nbrNode() + "):");
+				while(true)
+				{
+					try
+					{
+						nodeId = sc.nextInt();
+						if ((nodeId < 0) || (nodeId >= topology.nbrNode()))
+							throw new Exception();
+						chanel.close();
+						break;
+					}
+					catch(Exception e)
+					{
+						System.out.println("\t**** The index must respect ( 0 <= index <= " + topology.nbrNode() + ") ****");
+					}
+				}
+				continue;
+			}
 			Method m = null;
 			try
 			{
@@ -144,10 +163,12 @@ nodeIP = "localhost";
 			System.out.println("\t- Data         : ");
 			LinkedList<String> keySet = node.getKeySet();
 			if (keySet != null)
+			{
 				for (String key: keySet)
 				{
-					System.out.println("\t\t " + key + ":" + node.getValue(key));
+					System.out.println("\t\t " + key + ":\t" + node.getValue(key));
 				}
+			}
 			System.out.println("\t-------------------------------");
 		}
 	}
@@ -204,19 +225,31 @@ nodeIP = "localhost";
 
 	public String join(CommunicationChanel chanel, Scanner sc, String nodeIP, int nodeId, String keyTrash)
 	{
+// TODO
+		return null;
+/*
 		int		nextNodeId = parseNodeId(sc, "reach next");
 		String	nextNodeIP = parseNodeIP(sc, "reach next", null);
-		boolean res = true;
 		CommunicationChanel newChanel = connectToNode(sc, nextNodeIP, nextNodeId);
 
-		chanel.close();
-		if (newChanel == null) return null;
-		res &= newChanel.writeLine(Node.THREAD_EXTERNAL_JOIN);
-		res &= newChanel.writeLine(""+nodeId);
-		res &= newChanel.writeLine(nodeIP);
-		if (!res)
-			return null;
-		return newChanel.readLine();
+		do
+		{
+			String res = this.isResponsibleForKey(newChanel, sc, nodeIP, nextNodeId, ""+nodeId);
+			if ((res != null) && (Boolean.parseBoolean(res)))
+			{
+				// set previous of .... to -1
+				topology.getNode(nextNodeId).setPrevious(-1)
+				// get previous previous;
+				// Set next of previous to me
+				
+			}
+			String str = this.getNext(newChanel, sc, nodeIP, newNodeId, null);
+			if (str == null) break;
+			newNodeId = Integer.parseInt(str);
+			newChanel = connectToNode(sc, nodeIP, newNodeId);
+		}while(newNodeId != nodeId);
+		return null;
+*/
 	}
 
 	public String insert(CommunicationChanel chanel, Scanner sc, String nodeIP, int nodeId, String keyTrash)
@@ -304,6 +337,8 @@ nodeIP = "localhost";
 			String str = this.getNext(newChanel, sc, nodeIP, newNodeId, null);
 			if (str == null) break;
 			newNodeId = Integer.parseInt(str);
+			if (newNodeId <= 0)
+				return "(null)";
 			newChanel = connectToNode(sc, nodeIP, newNodeId);
 		}while(newNodeId != nodeId);
 		return null;
@@ -364,7 +399,7 @@ nodeIP = "localhost";
 		}
 	}
 
-	private static CommunicationChanel_Socket connectToNode(Scanner sc, String nodeIP, int nodeId)
+	private static CommunicationChanel connectToNode(Scanner sc, String nodeIP, int nodeId)
 	{
 		if (nodeIP == null)
 		{
@@ -375,12 +410,9 @@ nodeIP = "localhost";
 		{
 			nodeId = parseNodeId(sc, "call");
 		}
-
 		try
 		{
-			Socket socket = new Socket(nodeIP, ThreadExternal.getPort(nodeId));
-			CommunicationChanel_Socket res = new CommunicationChanel_Socket(socket);
-			return res;
+			return CommunicationChanel.instantiate(communicationChanelType, nodeIP, ThreadExternal.getPort(nodeId), -1, true, true, ThreadExternal.getInputChanelName(nodeId), ThreadExternal.getOutputChanelName(nodeId));
 		}
 		catch(Exception e)
 		{
@@ -419,7 +451,7 @@ nodeIP = "localhost";
 			return new String(nodeIP);
 		while(true)
 		{
-			System.out.println("\tPlease enter the IP of the node to " + nodeType + " ( >= 0)");
+			System.out.println("\tPlease enter the IP of the node to " + nodeType);
 			try
 			{
 				resNodeIP = sc.next();

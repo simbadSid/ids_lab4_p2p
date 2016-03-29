@@ -1,0 +1,6 @@
+Previous thread: starts waiting
+Previous thread: connected to the previous node: 0
+	next = 4PreviousThread: Receive request: "receiveMsg"
+	"qwert"PreviousThread: Receive request: "insert"
+ExternalThread: Receive request: "isResponsibleForKey"
+ExternalThread: Receive request: "getNext"

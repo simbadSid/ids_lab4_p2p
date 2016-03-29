@@ -1,0 +1,5 @@
+Previous thread: starts waiting
+Previous thread: connected to the previous node: 1
+	next = 0
+ExternalThread: Receive request: "insert"
+ExternalThread: Receive request: "insert"

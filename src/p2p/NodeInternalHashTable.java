@@ -96,7 +96,7 @@ public class NodeInternalHashTable
 		if (tabIndex == -1)
 			return false;
 
-		this.table[tabIndex] = new String(value);
+		this.table[tabIndex] = value;
 		this.keySet.addLast(key);
 		return true;
 	}
@@ -123,7 +123,7 @@ public class NodeInternalHashTable
 		if (tabIndex == -1)
 			return null;
 	
-		return new String(this.table[tabIndex]);
+		return this.table[tabIndex];
 	}
 
 	/**

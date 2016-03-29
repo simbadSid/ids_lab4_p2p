@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 
 
@@ -12,7 +13,7 @@ import java.net.Socket;
 
 
 
-public class CommunicationChanel_Socket implements CommunicationChanel
+public class CommunicationChanel_Socket extends CommunicationChanel
 {
 // ---------------------------------
 // Attributes
@@ -26,24 +27,39 @@ public class CommunicationChanel_Socket implements CommunicationChanel
 // ---------------------------------
 // Builder
 // ---------------------------------
-	public CommunicationChanel_Socket(Socket socket) throws IOException
+	public CommunicationChanel_Socket(String foreignIP, int foreignPort, int localPort, boolean write, boolean read, String writerName, String readerName) throws IOException
 	{
-		this(socket, true, true);
-	}
-
-	public CommunicationChanel_Socket(Socket socket, boolean write, boolean read) throws IOException
-	{
-		this.socket	= socket;
-		if (write)
+		if ((write) && (foreignIP != null))
+		{
+			this.socket = new Socket(foreignIP, foreignPort);
 			this.out	= new PrintWriter(socket.getOutputStream(), true);
+		}
 		if (read)
-			this.in		= new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		{
+			if (this.socket == null)
+			{
+				ServerSocket serverSocket = new ServerSocket(localPort);
+				this.socket = serverSocket.accept();
+				serverSocket.close();
+			}
+			this.in	= new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		}
+		if ((write) && (foreignIP == null))
+		{
+			this.out = new PrintWriter(socket.getOutputStream(), true);
+		}
+
 		this.isClose = false;
 	}
 
-	public CommunicationChanel_Socket(Socket socket, boolean printError) throws IOException
+	public CommunicationChanel_Socket(String foreignIP, int foreignPort, int localPort, String writerName, String readerName) throws IOException
 	{
-		this(socket);
+		this(foreignIP, foreignPort, localPort, true, true, writerName, readerName);
+	}
+
+	public CommunicationChanel_Socket(String foreignIP, int foreignPort, int localPort, boolean printError, String writerName, String readerName) throws IOException
+	{
+		this(foreignIP, foreignPort, localPort, writerName, readerName);
 		this.printError = printError;
 	}
 
@@ -95,7 +111,7 @@ public class CommunicationChanel_Socket implements CommunicationChanel
 	}
 
 	@Override
-	public boolean writeLine(String msg)
+	public Boolean writeLine(String msg)
 	{
 		try
 		{
@@ -129,7 +145,7 @@ public class CommunicationChanel_Socket implements CommunicationChanel
 	}
 
 	@Override
-	public boolean isClose()
+	public Boolean isClose()
 	{
 		return this.isClose;
 	}

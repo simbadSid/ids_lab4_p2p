@@ -1,11 +1,9 @@
 package p2p;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.net.ServerSocket;
-import java.net.Socket;
 import communication.CommunicationChanel;
 import communication.Logger;
+
 
 
 
@@ -16,26 +14,33 @@ public class ThreadPrevious implements Runnable
 // -----------------------------------
 // Attributes
 // -----------------------------------
-	public static final int		initialPreviousPort			= 2222;
+	public static final int		initialPreviousPort	= 2222;
+	public static final String	chanelName_input	= "ThreadNextInput_";
 
 	private Object			lock = new Object();
 	private boolean			initialized	= false;
 
-	private Node			node;
-	private CommunicationChanel chanel;
-	private int				previousNodePort;
-	private Logger			logger;
-	private Constructor<?>	communicationChanelConstructor;
+	private Node	node;
+	private int		nodeId;
+	private int		previousNodePort;
+	private Logger	logger;
+	private String	communicationChanelType;
 
 // -----------------------------------
 // Builder
 // -----------------------------------
-	public ThreadPrevious(Node node, int nodeId, Logger logger, Constructor<?> communicationChanelConstructor)
+	public static void initThreadPrevious(Node node, int nodeId, Logger logger, String communicationChanelType)
 	{
-		this.node							= node;
-		this.previousNodePort				= getPort(nodeId);
-		this.logger							= logger;
-		this.communicationChanelConstructor	= communicationChanelConstructor;
+		new ThreadPrevious(node, nodeId, logger, communicationChanelType);
+	}
+
+	private ThreadPrevious(Node node, int nodeId, Logger logger, String communicationChanelType)
+	{
+		this.node						= node;
+		this.nodeId						= nodeId;
+		this.previousNodePort			= getPort(nodeId);
+		this.logger						= logger;
+		this.communicationChanelType	= communicationChanelType;
 
 		Thread t = new Thread(this);
 		t.start();
@@ -59,40 +64,32 @@ public class ThreadPrevious implements Runnable
 // -----------------------------------
 // Local methods
 // -----------------------------------
-	public void closePreviousChanel()
-	{
-		if (this.chanel != null)
-			this.chanel.close();
-	}
-
 	@Override
 	public void run()
 	{
-		ServerSocket serverSocket = null;
-		Socket socket;
+		CommunicationChanel chanel = null;
 		String request;
 
+		try
+		{
+			logger.write("Previous thread: starts waiting\n");
+			synchronized(this.lock)
+			{
+				this.initialized = true;
+				this.lock.notifyAll();							// Notify the end of the initialization
+			}
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			throw new RuntimeException();
+		}
 		while(true)
 		{
-			this.node.setPrevious(-1);
-			try
-			{
-				serverSocket = new ServerSocket(previousNodePort);	// Initialize the previous connection
-				logger.write("Previous thread: starts waiting\n");
-				synchronized(this.lock)
-				{
-					this.initialized = true;
-					this.lock.notifyAll();							// Notify the end of the initialization
-				}
-				socket = serverSocket.accept();						// Accept a connection from a previous node
-				chanel = (CommunicationChanel) communicationChanelConstructor.newInstance(socket, false, true);
-				serverSocket.close();
-			}
-			catch(Exception e)
-			{
-				e.printStackTrace();
-				throw new RuntimeException();
-			}
+			chanel = CommunicationChanel.instantiate(communicationChanelType, null, -1, previousNodePort, false, true, null, getChanelName(nodeId));
+			if (chanel == null)
+				continue;
+
 			Integer previousId = chanel.readInt();					// Check the identity of the previous node
 			if ((previousId == null) || (previousId < 0))
 				continue;
@@ -134,20 +131,16 @@ public class ThreadPrevious implements Runnable
 		return true;
 	}
 
-	public boolean join(CommunicationChanel chanel)
-	{
-		int		newNodeId	= chanel.readInt();
-		String	newNodeIP	= chanel.readLine();
-
-		this.node.join(newNodeId, newNodeIP);
-		return true;
-	}
-
 	public boolean insert(CommunicationChanel chanel)
 	{
 		String key	= chanel.readLine();
 		String value= chanel.readLine();
 		return this.node.insert(key, value);
+	}
+
+	public static String getChanelName(int nodeId)
+	{
+		return ThreadPrevious.chanelName_input + nodeId;
 	}
 
 // -----------------------------------
