@@ -1,6 +1,0 @@
-Previous thread: starts waiting
-Previous thread: connected to the previous node: 1
-	next = 0
-PreviousThread: Receive request: "receiveMsg"
-	"qwerty"PreviousThread: Receive request: "insert"
-PreviousThread: Receive request: "insert"

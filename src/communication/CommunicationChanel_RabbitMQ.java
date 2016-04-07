@@ -14,7 +14,6 @@ import com.rabbitmq.client.Envelope;
 
 
 
-
 public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 {
 // ---------------------------------
@@ -24,6 +23,7 @@ public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 	private Channel					writerChannel;
 	private Channel					readerChannel;
 	private String					writerName;
+	private String					readerName;
 	private SynchronizedList<String>synchronizedReceivedMsg;
 	private boolean					printError	= true;
 
@@ -47,8 +47,9 @@ public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 		}
 		if (read)
 		{
+			this.readerName				= new String(readerName);
 			this.readerChannel			= connection.createChannel();
-			this.readerChannel.queueDeclare(readerName, false, false, false, null);
+			this.readerChannel.queueDeclare(this.readerName, false, false, false, null);
 			this.synchronizedReceivedMsg= new SynchronizedList<String>();
 			Consumer consumer = new DefaultConsumer(this.readerChannel)
 			{
@@ -57,6 +58,7 @@ public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 				{
 					String message = new String(body, "UTF-8");
 					synchronizedReceivedMsg.addLast(message);
+//System.out.println("\n---res = " + message);
 		        }
 		    };
 		    this.readerChannel.basicConsume(readerName, true, consumer);
@@ -71,8 +73,10 @@ public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 	{
 		if (this.readerChannel == null)
 			throw new RuntimeException("Channel has not been initialized for reading");
-
-		return this.synchronizedReceivedMsg.getAndRemoveFirst();
+//System.out.println("\n---Begin wait: on " + this.readerName);
+		String res = this.synchronizedReceivedMsg.getAndRemoveFirst();
+//System.out.println("\n---End wait: on " + this.readerName + "  with msg: " + Serialization_string.getObjectFromSerializedString(res));
+		return res;
 	}
 
 	@Override
@@ -110,10 +114,12 @@ public class CommunicationChanel_RabbitMQ extends CommunicationChanel
 	{
 		if (this.writerChannel == null)
 			throw new RuntimeException("Channel has not been initialized for reading");
+		String toWrite = (msg == null) ? "null" : new String(msg);
 
 		try
 		{
-		    this.writerChannel.basicPublish("", this.writerName, null, msg.getBytes());
+		    this.writerChannel.basicPublish("", this.writerName, null, toWrite.getBytes());
+//System.out.println("\n+++Write: " + Serialization_string.getObjectFromSerializedString(toWrite) + "  on " + this.writerName);
 		    return true;
 		}
 		catch(Exception e)
